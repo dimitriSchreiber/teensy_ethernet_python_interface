@@ -2,6 +2,7 @@
 //Imports
 //--------------------------------------------------------------------------
 #include "QuadEncoder.h"
+#include "ESC.h"
 #include <ADC.h>
 #include <ADC_util.h>
 #include <NativeEthernet.h>
@@ -46,6 +47,10 @@ ADC *adc = new ADC(); // adc object
 #define DIG_PINS 11
 uint8_t adc_pins[] = {A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17};
 uint8_t digital_pins[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+uint8_t servoPin = 33;
+int pumpSpeed;
+
+ESC myESC (servoPin, 1000, 2000, 500);
   
 //--------------------------------------------------------------------------
 //Other global variables
@@ -74,6 +79,12 @@ void setup()
   Serial.begin(115200);
   delay(500);
   Serial.println("Starting up");
+
+//  servo setup
+  myESC.calib();                  // Calibration of the Max and Min value the ESC is expecting
+  myESC.stop(); 
+  myESC.arm();                          // Send the Arm value
+  delay(5000);
   
   //--------------------------------------------------------------------------
   //ADC Setup and digital IO
@@ -231,7 +242,11 @@ void loop(){
     toggle_digital_pin((int)(doc2["solenoid10"]),10); 
 
     //toggle_digital_pin(int(1),1);
-
+    pumpSpeed = (int)(doc2["pumpSpeed"]);
+    if(pumpSpeed == 0)
+      myESC.stop();
+    else
+      myESC.speed(pumpSpeed); 
     
     // send a reply to the IP address and port that sent us the packet we received
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
