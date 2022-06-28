@@ -2,7 +2,6 @@
 //Imports
 //--------------------------------------------------------------------------
 #include "QuadEncoder.h"
-#include "ESC.h"
 #include <ADC.h>
 #include <ADC_util.h>
 #include <NativeEthernet.h>
@@ -26,9 +25,9 @@
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
 byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEA
 };
-IPAddress ip(192, 168, 1, 127);
+IPAddress ip(192, 168, 1, 120);
 unsigned int localPort = 8888;      // local port to listen on
 // buffers for receiving and sending data
 char packetBuffer[1024];  // buffer to hold incoming packet,
@@ -47,11 +46,12 @@ ADC *adc = new ADC(); // adc object
 #define DIG_PINS 11
 uint8_t adc_pins[] = {A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17};
 uint8_t digital_pins[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+uint8_t digital_pins_input[] = {20, 21, 22, 23};
+
 uint8_t servoPin = 33;
 int pumpSpeed;
 
-ESC myESC (servoPin, 1000, 2000, 500);
-  
+
 //--------------------------------------------------------------------------
 //Other global variables
 //--------------------------------------------------------------------------
@@ -80,11 +80,7 @@ void setup()
   delay(500);
   Serial.println("Starting up");
 
-//  servo setup
-  myESC.calib();                  // Calibration of the Max and Min value the ESC is expecting
-  myESC.stop(); 
-  myESC.arm();                          // Send the Arm value
-  delay(5000);
+ delay(500);
   
   //--------------------------------------------------------------------------
   //ADC Setup and digital IO
@@ -95,6 +91,11 @@ void setup()
   {
     pinMode(digital_pins[i], OUTPUT);
   }
+
+  pinMode(digital_pins_input[0], OUTPUT);
+  pinMode(digital_pins_input[1], OUTPUT);
+  pinMode(digital_pins_input[2], OUTPUT);
+  pinMode(digital_pins_input[3], OUTPUT);
   
   for (int i = 0; i < PINS; i++)
   {
@@ -176,6 +177,16 @@ void loop(){
   doc["analog12_voltage"] = adc->analogRead(adc_pins[12])* 3.3 / adc->adc0->getMaxValue();
   doc["loop_sleep_time"] = loop_sleep_time;
 
+  doc["analog0_voltage"] = adc->analogRead(adc_pins[0])* 3.3 / adc->adc0->getMaxValue();
+  doc["analog1_voltage"] = adc->analogRead(adc_pins[1])* 3.3 / adc->adc0->getMaxValue();
+  doc["analog2_voltage"] = adc->analogRead(adc_pins[2])* 3.3 / adc->adc0->getMaxValue();
+  doc["analog3_voltage"] = adc->analogRead(adc_pins[3])* 3.3 / adc->adc0->getMaxValue();
+  
+  doc["limit_switch1"] = digitalRead(digital_pins_input[0]);
+  doc["limit_switch2"] = digitalRead(digital_pins_input[1]);
+  doc["limit_switch3"] = digitalRead(digital_pins_input[2]);
+  doc["limit_switch0"] = digitalRead(digital_pins_input[3]);
+  
   if(PRINT_SERIAL){
     Serial.print("Analog Line 0: ");
     Serial.println((double)doc["analog0_voltage"], 2);  
@@ -243,12 +254,10 @@ void loop(){
 
     //toggle_digital_pin(int(1),1);
     pumpSpeed = (int)(doc2["pumpSpeed"]);
-    if(pumpSpeed == 0)
-      myESC.stop();
-    else
-      myESC.speed(pumpSpeed); 
-    
+  
     // send a reply to the IP address and port that sent us the packet we received
+    Serial.println(Udp.remoteIP());
+    Serial.println(Udp.remotePort());
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     Udp.write(ReplyBuffer);
     Udp.endPacket();
